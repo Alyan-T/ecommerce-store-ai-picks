@@ -21,7 +21,7 @@ const ProductSchema = new mongoose.Schema(
 const Product = mongoose.models.Product || mongoose.model("Product", ProductSchema);
 
 async function run() {
-  const uri = "mongodb+srv://alyant660_db_user:usingmongodbfirstly@cluster0.h7fwbel.mongodb.net/";
+  const uri = "";
   await mongoose.connect(uri);
   console.log("Connected to MongoDB");
 
