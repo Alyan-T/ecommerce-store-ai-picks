@@ -32,6 +32,7 @@ export default function AdminDashboard() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
 
   // Users
   const [users, setUsers] = useState([]);
@@ -125,8 +126,21 @@ export default function AdminDashboard() {
   }
 
   async function handleDeleteProduct(id) {
-    await fetch(`/api/products/${id}`, { method: "DELETE" });
-    setDeleteConfirm(null); fetchProducts();
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setDeleteConfirm(null);
+        fetchProducts();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to delete product");
+      }
+    } catch {
+      alert("Something went wrong.");
+    } finally {
+      setDeleting(false);
+    }
   }
 
   async function toggleFeatured(p) {
@@ -458,8 +472,9 @@ export default function AdminDashboard() {
 
       {/* ─── MODALS ─── */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-lg p-8" style={{ background: "#fff", border: "1px solid var(--border)" }}>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-sm">
+          <div className="flex min-h-full items-start justify-center p-4 pt-20">
+          <div className="w-full max-w-lg p-8 mb-8" style={{ background: "#fff", border: "1px solid var(--border)" }}>
             <h2 className="text-2xl font-semibold mb-6" style={{ fontFamily: "'Playfair Display', serif", color: "var(--charcoal)" }}>{editingProduct ? "Edit Product" : "Add Product"}</h2>
             {formError && <div className="text-red-500 text-xs mb-4 p-3 bg-red-50 border border-red-200"><FontAwesomeIcon icon={faExclamationTriangle} className="mr-2" />{formError}</div>}
             <form onSubmit={handleFormSubmit} className="space-y-4">
@@ -472,6 +487,37 @@ export default function AdminDashboard() {
                 <button type="submit" disabled={formLoading} className="btn-primary flex-1 py-3 text-xs">{formLoading ? "Saving..." : "Save Product"}</button>
               </div>
             </form>
+          </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── DELETE CONFIRMATION MODAL ─── */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm p-8 text-center" style={{ background: "#fff", border: "1px solid var(--border)" }}>
+            <div className="w-14 h-14 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mx-auto mb-4">
+              <FontAwesomeIcon icon={faTrash} className="text-red-500 text-xl" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2" style={{ fontFamily: "'Playfair Display', serif", color: "var(--charcoal)" }}>Delete Product?</h3>
+            <p className="text-sm mb-6" style={{ color: "var(--muted)" }}>This action cannot be undone. The product will be permanently removed from the store.</p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleting}
+                className="flex-1 py-3 text-xs uppercase tracking-widest font-semibold border transition-colors hover:bg-gray-50 disabled:opacity-50"
+                style={{ borderColor: "var(--border)", color: "var(--charcoal)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteProduct(deleteConfirm)}
+                disabled={deleting}
+                className="flex-1 py-3 text-xs uppercase tracking-widest font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}

@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
-import { faStore, faBox, faReceipt, faChartLine, faTicket, faPenToSquare, faTrash, faPlus, faExclamationTriangle, faSave, faTimes } from "@fortawesome/free-solid-svg-icons";
+import { faStore, faBox, faReceipt, faChartLine, faTicket, faPenToSquare, faTrash, faPlus, faExclamationTriangle, faSave, faTimes, faUpload, faLink, faSpinner } from "@fortawesome/free-solid-svg-icons";
 
 const CATEGORIES = ["Electronics", "Clothing", "Home", "Books", "Sports", "Other"];
 const EMPTY_FORM = { name: "", description: "", price: "", category: "Electronics", image: "", stock: "100" };
@@ -31,7 +31,11 @@ export default function SellerDashboard() {
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState("");
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [deleting, setDeleting] = useState(false);
   const [aiGenerating, setAiGenerating] = useState(false);
+  const [imageUploading, setImageUploading] = useState(false);
+  const [imageTab, setImageTab] = useState("url"); // "url" | "file"
+  const fileInputRef = useRef(null);
 
   // Inline stock edit
   const [editingStock, setEditingStock] = useState(null);
@@ -143,9 +147,42 @@ export default function SellerDashboard() {
   }
 
   async function handleDeleteProduct(id) {
-    await fetch(`/api/products/${id}`, { method: "DELETE" });
-    setDeleteConfirm(null);
-    fetchMyProducts();
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/products/${id}`, { method: "DELETE" });
+      if (res.ok) {
+        setDeleteConfirm(null);
+        fetchMyProducts();
+      } else {
+        const data = await res.json();
+        alert(data.error || "Failed to delete product");
+      }
+    } catch {
+      alert("Something went wrong.");
+    } finally {
+      setDeleting(false);
+    }
+  }
+
+  async function handleImageFile(e) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setImageUploading(true);
+    try {
+      const fd = new FormData();
+      fd.append("file", file);
+      const res = await fetch("/api/upload", { method: "POST", body: fd });
+      const data = await res.json();
+      if (res.ok) {
+        setForm((prev) => ({ ...prev, image: data.url }));
+      } else {
+        alert(data.error || "Upload failed");
+      }
+    } catch {
+      alert("Upload failed.");
+    } finally {
+      setImageUploading(false);
+    }
   }
 
   async function generateAIDescription() {
@@ -641,8 +678,9 @@ export default function SellerDashboard() {
 
       {/* ─── MODALS ─── */}
       {showForm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
-          <div className="w-full max-w-lg p-8" style={{ background: "#fff", border: "1px solid var(--border)" }}>
+        <div className="fixed inset-0 z-50 overflow-y-auto bg-black/40 backdrop-blur-sm">
+          <div className="flex min-h-full items-start justify-center p-4 pt-20">
+          <div className="w-full max-w-lg p-8 mb-8" style={{ background: "#fff", border: "1px solid var(--border)" }}>
             <h2 className="text-2xl font-semibold mb-6" style={{ fontFamily: "'Playfair Display', serif", color: "var(--charcoal)" }}>{editingProduct ? "Edit Product" : "Add Product"}</h2>
             {formError && <div className="text-red-500 text-xs mb-4 p-3 bg-red-50 border border-red-200"><FontAwesomeIcon icon={faExclamationTriangle} className="mr-2" />{formError}</div>}
             <form onSubmit={handleFormSubmit} className="space-y-4">
@@ -689,14 +727,111 @@ export default function SellerDashboard() {
                 </select>
               </div>
               <div>
-                <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2" style={{ color: "var(--charcoal)" }}>Image URL (Optional)</label>
-                <input className="input-dark w-full" value={form.image} onChange={(e) => setForm({ ...form, image: e.target.value })} placeholder="https://example.com/image.jpg" />
+                <label className="block text-[10px] uppercase tracking-widest font-semibold mb-2" style={{ color: "var(--charcoal)" }}>Product Image (Optional)</label>
+                {/* Tab switcher */}
+                <div className="flex mb-3 border rounded overflow-hidden" style={{ borderColor: "var(--border)" }}>
+                  <button
+                    type="button"
+                    onClick={() => setImageTab("url")}
+                    className={`flex-1 py-1.5 text-[10px] uppercase tracking-widest font-semibold flex items-center justify-center gap-1.5 transition-colors ${
+                      imageTab === "url" ? "bg-charcoal text-white" : "bg-white text-muted hover:bg-gray-50"
+                    }`}
+                    style={{ background: imageTab === "url" ? "var(--charcoal)" : "", color: imageTab === "url" ? "#fff" : "var(--muted)" }}
+                  >
+                    <FontAwesomeIcon icon={faLink} /> URL
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setImageTab("file")}
+                    className={`flex-1 py-1.5 text-[10px] uppercase tracking-widest font-semibold flex items-center justify-center gap-1.5 transition-colors`}
+                    style={{ background: imageTab === "file" ? "var(--charcoal)" : "", color: imageTab === "file" ? "#fff" : "var(--muted)" }}
+                  >
+                    <FontAwesomeIcon icon={faUpload} /> Upload File
+                  </button>
+                </div>
+
+                {imageTab === "url" ? (
+                  <input
+                    className="input-dark w-full"
+                    value={form.image.startsWith("data:") ? "" : form.image}
+                    onChange={(e) => setForm({ ...form, image: e.target.value })}
+                    placeholder="https://example.com/image.jpg"
+                  />
+                ) : (
+                  <div>
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept="image/*"
+                      className="hidden"
+                      onChange={handleImageFile}
+                    />
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      disabled={imageUploading}
+                      className="w-full border-2 border-dashed py-4 text-xs flex flex-col items-center gap-2 transition-colors hover:bg-gray-50 disabled:opacity-60"
+                      style={{ borderColor: "var(--border)", color: "var(--muted)" }}
+                    >
+                      {imageUploading ? (
+                        <><FontAwesomeIcon icon={faSpinner} className="animate-spin text-base" /> Uploading...</>
+                      ) : (
+                        <><FontAwesomeIcon icon={faUpload} className="text-base" /> Click to browse image from your PC</>
+                      )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Preview */}
+                {form.image && (
+                  <div className="mt-2 flex items-center gap-3">
+                    <img src={form.image} alt="Preview" className="w-14 h-14 object-cover border" style={{ borderColor: "var(--border)" }} />
+                    <button
+                      type="button"
+                      onClick={() => setForm((p) => ({ ...p, image: "" }))}
+                      className="text-xs text-red-500 hover:text-red-700 flex items-center gap-1"
+                    >
+                      <FontAwesomeIcon icon={faTimes} /> Remove
+                    </button>
+                  </div>
+                )}
               </div>
               <div className="flex gap-4 mt-6">
                 <button type="button" onClick={() => setShowForm(false)} className="flex-1 py-3 text-xs uppercase tracking-widest font-semibold border transition-colors hover:bg-gray-50" style={{ borderColor: "var(--border)", color: "var(--charcoal)" }}>Cancel</button>
                 <button type="submit" disabled={formLoading} className="btn-primary flex-1 py-3 text-xs">{formLoading ? "Saving..." : "Save Product"}</button>
               </div>
             </form>
+          </div>
+          </div>
+        </div>
+      )}
+
+      {/* ─── DELETE CONFIRMATION MODAL ─── */}
+      {deleteConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-sm">
+          <div className="w-full max-w-sm p-8 text-center" style={{ background: "#fff", border: "1px solid var(--border)" }}>
+            <div className="w-14 h-14 rounded-full bg-red-50 border border-red-200 flex items-center justify-center mx-auto mb-4">
+              <FontAwesomeIcon icon={faTrash} className="text-red-500 text-xl" />
+            </div>
+            <h3 className="text-xl font-semibold mb-2" style={{ fontFamily: "'Playfair Display', serif", color: "var(--charcoal)" }}>Delete Product?</h3>
+            <p className="text-sm mb-6" style={{ color: "var(--muted)" }}>This action cannot be undone. The product will be permanently removed from your store.</p>
+            <div className="flex gap-4">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                disabled={deleting}
+                className="flex-1 py-3 text-xs uppercase tracking-widest font-semibold border transition-colors hover:bg-gray-50 disabled:opacity-50"
+                style={{ borderColor: "var(--border)", color: "var(--charcoal)" }}
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => handleDeleteProduct(deleteConfirm)}
+                disabled={deleting}
+                className="flex-1 py-3 text-xs uppercase tracking-widest font-semibold bg-red-500 text-white hover:bg-red-600 transition-colors disabled:opacity-50"
+              >
+                {deleting ? "Deleting..." : "Delete"}
+              </button>
+            </div>
           </div>
         </div>
       )}
