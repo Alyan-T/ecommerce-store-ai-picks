@@ -3,6 +3,7 @@ import "@/lib/fontawesome";
 import { CartProvider } from "@/components/CartContext";
 import Navbar from "@/components/Navbar";
 import ChatWidget from "@/components/ChatWidget";
+import PWARegister from "@/components/PWARegister";
 import Link from "next/link";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faTwitter, faInstagram, faPinterest } from "@fortawesome/free-brands-svg-icons";
@@ -10,11 +11,33 @@ import { faTruck, faArrowRotateLeft, faLock } from "@fortawesome/free-solid-svg-
 export const metadata = {
   title: "HyperStore — Curated Fashion & Lifestyle",
   description: "Discover beautifully curated fashion and lifestyle products. AI-powered recommendations, trusted sellers, seamless checkout.",
+  manifest: "/manifest.json",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "black-translucent",
+    title: "HyperStore",
+  },
   icons: {
     icon: [
-      { url: '/logo.png', href: '/logo.png' }
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
+      { url: "/logo.png", href: "/logo.png" },
+    ],
+    apple: [
+      { url: "/icon-192.png", sizes: "192x192", type: "image/png" },
+      { url: "/icon-512.png", sizes: "512x512", type: "image/png" },
     ],
   },
+  other: {
+    "mobile-web-app-capable": "yes",
+  },
+};
+
+export const viewport = {
+  themeColor: "#1a1a2e",
+  width: "device-width",
+  initialScale: 1,
+  maximumScale: 1,
 };
 
 export default function RootLayout({ children }) {
@@ -22,6 +45,7 @@ export default function RootLayout({ children }) {
     <html lang="en">
       <body style={{ background: "var(--cream)", color: "var(--charcoal)" }} className="min-h-screen flex flex-col">
         <CartProvider>
+          <PWARegister />
           <Navbar />
           <main className="flex-1 max-w-7xl mx-auto w-full px-5 sm:px-8 lg:px-10 py-10">
             {children}
