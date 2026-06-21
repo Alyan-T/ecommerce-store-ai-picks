@@ -1,10 +1,10 @@
-# ShopAI — AI-Powered Ecommerce (Next.js + MongoDB + OpenAI Vector Search)
+# HyperStore — AI-Powered Ecommerce (Next.js + MongoDB + OpenAI Vector Search)
 
-A full ecommerce starter with:
+A full ecommerce store with:
 - Product catalog with search & category filters
 - Auth (register/login/logout) using JWT cookies
 - Cart (persisted in localStorage) and checkout that creates orders
-- **AI shopping assistant chatbot** that uses Mistral AI embeddings + MongoDB
+- AI shopping assistant chatbot that uses Mistral AI embeddings + MongoDB
   Atlas Vector Search to find relevant products and reply conversationally
 
 ## 1. Install dependencies
@@ -132,12 +132,3 @@ models/
 scripts/
   seed.js     - seeds sample products with embeddings
 ```
-
-## Next steps / ideas to extend
-
-- Add an admin dashboard to create/edit products (the POST `/api/products`
-  route already generates embeddings automatically for new products)
-- Add real payments (Stripe Checkout)
-- Add product reviews/ratings
-- Stream the chatbot's response token-by-token for a snappier feel
-- Add pagination to the product listing
