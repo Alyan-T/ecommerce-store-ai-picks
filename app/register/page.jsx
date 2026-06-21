@@ -1,8 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRight, faCircleExclamation, faUser, faStore, faCheck } from "@fortawesome/free-solid-svg-icons";
 
@@ -11,11 +11,19 @@ const ROLES = [
   { id: "seller", label: "Seller", desc: "List & Sell", icon: faStore },
 ];
 
-export default function RegisterPage() {
+function RegisterForm() {
   const [form, setForm] = useState({ name: "", email: "", password: "", confirmPassword: "", role: "customer" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const err = searchParams.get("error");
+    if (err) {
+      setError(err);
+    }
+  }, [searchParams]);
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -44,9 +52,8 @@ export default function RegisterPage() {
         setError(data.error || "Registration failed");
         return;
       }
-      if (data.user.role === "seller") router.push("/seller");
-      else router.push("/");
-      router.refresh();
+      if (data.user.role === "seller") window.location.href = "/seller";
+      else window.location.href = "/";
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -130,6 +137,26 @@ export default function RegisterPage() {
             </button>
           </form>
 
+          <div className="flex items-center gap-4 my-6">
+            <div className="flex-1" style={{ height: "1px", background: "var(--border)" }} />
+            <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "var(--muted)" }}>or</span>
+            <div className="flex-1" style={{ height: "1px", background: "var(--border)" }} />
+          </div>
+
+          <a
+            href="/api/auth/google"
+            className="flex items-center justify-center gap-3 w-full px-6 py-3 border font-semibold text-xs uppercase tracking-widest transition-all duration-200 shadow-sm hover:opacity-90 active:scale-95 mb-6"
+            style={{ borderColor: "var(--border)", background: "#fff", color: "var(--charcoal)" }}
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <path
+                fill="#EA4335"
+                d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l3.227-3.227C18.214 1.155 15.46 0 12.24 0 5.58 0 0 5.58 0 12.24s5.58 12.24 12.24 12.24c6.96 0 11.57-4.89 11.57-11.79 0-.795-.085-1.4-.195-2.005H12.24z"
+              />
+            </svg>
+            <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Continue with Google</span>
+          </a>
+
           <p className="text-center text-xs mt-8" style={{ color: "var(--muted)" }}>
             Already have an account?{" "}
             <Link href="/login" className="font-semibold transition-colors" style={{ color: "var(--charcoal)", borderBottom: "1px solid var(--charcoal)" }}>
@@ -139,5 +166,17 @@ export default function RegisterPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function RegisterPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="shimmer h-8 w-8 rounded-full animate-spin border-2 border-charcoal"></div>
+      </div>
+    }>
+      <RegisterForm />
+    </Suspense>
   );
 }

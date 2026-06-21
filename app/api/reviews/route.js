@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import Review from "@/models/Review";
+import Product from "@/models/Product";
 import { getUserFromRequest } from "@/lib/auth";
 
 // GET /api/reviews?productId= -> list reviews + average rating for a product
@@ -12,6 +13,14 @@ export async function GET(req) {
   }
 
   await connectToDatabase();
+
+  const product = await Product.findById(productId).select("isDemo").lean();
+  if (product?.isDemo) {
+    const user = getUserFromRequest(req);
+    if (user?.email !== "demo.seller@hyperstore.com") {
+      return NextResponse.json({ reviews: [], avgRating: 0, count: 0 });
+    }
+  }
 
   const reviews = await Review.find({ product: productId })
     .populate("user", "name")
@@ -45,6 +54,14 @@ export async function POST(req) {
   }
 
   try {
+    const product = await Product.findById(productId).select("isDemo").lean();
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+    if (product.isDemo && user.email !== "demo.seller@hyperstore.com") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const review = await Review.create({
       product: productId,
       user: user.id,

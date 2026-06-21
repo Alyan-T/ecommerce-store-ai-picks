@@ -6,13 +6,19 @@ import User from "@/models/User";
 export async function GET(req) {
   const payload = getUserFromRequest(req);
   if (!payload) {
-    return NextResponse.json({ user: null }, { status: 200 });
+    return NextResponse.json({ user: null }, {
+      status: 200,
+      headers: { "Cache-Control": "no-store, max-age=0" }
+    });
   }
 
   await connectToDatabase();
   const userObj = await User.findById(payload.id).select("-password").lean();
   if (!userObj) {
-    return NextResponse.json({ user: null }, { status: 200 });
+    return NextResponse.json({ user: null }, {
+      status: 200,
+      headers: { "Cache-Control": "no-store, max-age=0" }
+    });
   }
 
   return NextResponse.json({
@@ -23,5 +29,9 @@ export async function GET(req) {
       role: userObj.role,
       address: userObj.address || null,
     },
+  }, {
+    headers: {
+      "Cache-Control": "no-store, max-age=0"
+    }
   });
 }

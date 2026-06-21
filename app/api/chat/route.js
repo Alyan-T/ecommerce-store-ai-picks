@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import Product from "@/models/Product";
 import { mistral, getEmbedding } from "@/lib/mistral";
+import { getUserFromRequest } from "@/lib/auth";
 
 // POST /api/chat
 // body: { message: string, history: [{ role, content }] }
@@ -21,7 +22,10 @@ export async function POST(req) {
   //    on the Product collection's "embedding" field.
   let matches = [];
   try {
-    matches = await Product.aggregate([
+    const user = getUserFromRequest(req);
+    const includeDemo = user?.email === "demo.seller@hyperstore.com";
+
+    const pipeline = [
       {
         $vectorSearch: {
           index: "vector_index",
@@ -31,17 +35,28 @@ export async function POST(req) {
           limit: 5,
         },
       },
-      {
-        $project: {
-          name: 1,
-          description: 1,
-          price: 1,
-          category: 1,
-          image: 1,
-          score: { $meta: "vectorSearchScore" },
-        },
+    ];
+
+    if (!includeDemo) {
+      pipeline.push({
+        $match: {
+          isDemo: { $ne: true }
+        }
+      });
+    }
+
+    pipeline.push({
+      $project: {
+        name: 1,
+        description: 1,
+        price: 1,
+        category: 1,
+        image: 1,
+        score: { $meta: "vectorSearchScore" },
       },
-    ]);
+    });
+
+    matches = await Product.aggregate(pipeline);
   } catch (err) {
     // If the vector index doesn't exist yet, fall back gracefully
     console.error("Vector search failed:", err.message);

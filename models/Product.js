@@ -13,6 +13,7 @@ const ProductSchema = new mongoose.Schema(
     // Who created this product (admin or seller)
     createdBy: { type: mongoose.Schema.Types.ObjectId, ref: "User" },
     sellerName: { type: String, default: "HyperStore" },
+    isDemo: { type: Boolean, default: false },
 
     // 1024-dimension vector from Mistral's mistral-embed model.
     // A vector search index must be created on this field in Atlas.

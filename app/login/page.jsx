@@ -1,16 +1,24 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, Suspense } from "react";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faArrowRight, faCircleExclamation, faUser, faStore, faShieldHalved } from "@fortawesome/free-solid-svg-icons";
 
-export default function LoginPage() {
+function LoginForm() {
   const [form, setForm] = useState({ email: "", password: "" });
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const router = useRouter();
+  const searchParams = useSearchParams();
+
+  useEffect(() => {
+    const err = searchParams.get("error");
+    if (err) {
+      setError(err);
+    }
+  }, [searchParams]);
 
   function handleChange(e) {
     setForm({ ...form, [e.target.name]: e.target.value });
@@ -32,10 +40,27 @@ export default function LoginPage() {
         return;
       }
       const role = data.user?.role;
-      if (role === "admin") router.push("/admin");
-      else if (role === "seller") router.push("/seller");
-      else router.push("/");
-      router.refresh();
+      if (role === "admin") window.location.href = "/admin";
+      else if (role === "seller") window.location.href = "/seller";
+      else window.location.href = "/";
+    } catch {
+      setError("Something went wrong. Please try again.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  async function handleDemoSeller() {
+    setError("");
+    setLoading(true);
+    try {
+      const res = await fetch("/api/auth/demo-seller", { method: "POST" });
+      const data = await res.json();
+      if (!res.ok) {
+        setError(data.error || "Failed to log in as demo seller");
+        return;
+      }
+      window.location.href = "/seller";
     } catch {
       setError("Something went wrong. Please try again.");
     } finally {
@@ -78,6 +103,36 @@ export default function LoginPage() {
             </button>
           </form>
 
+          <div className="flex items-center gap-4 my-6">
+            <div className="flex-1" style={{ height: "1px", background: "var(--border)" }} />
+            <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "var(--muted)" }}>or</span>
+            <div className="flex-1" style={{ height: "1px", background: "var(--border)" }} />
+          </div>
+
+          <a
+            href="/api/auth/google"
+            className="flex items-center justify-center gap-3 w-full px-6 py-3 border font-semibold text-xs uppercase tracking-widest transition-all duration-200 shadow-sm hover:opacity-90 active:scale-95 mb-6"
+            style={{ borderColor: "var(--border)", background: "#fff", color: "var(--charcoal)" }}
+          >
+            <svg className="w-4 h-4" viewBox="0 0 24 24">
+              <path
+                fill="#EA4335"
+                d="M12.24 10.285V14.4h6.887c-.275 1.565-1.88 4.604-6.887 4.604-4.33 0-7.866-3.577-7.866-8s3.536-8 7.866-8c2.46 0 4.105 1.025 5.047 1.926l3.227-3.227C18.214 1.155 15.46 0 12.24 0 5.58 0 0 5.58 0 12.24s5.58 12.24 12.24 12.24c6.96 0 11.57-4.89 11.57-11.79 0-.795-.085-1.4-.195-2.005H12.24z"
+              />
+            </svg>
+            <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>Continue with Google</span>
+          </a>
+
+          <button
+            type="button"
+            onClick={handleDemoSeller}
+            disabled={loading}
+            className="flex items-center justify-center gap-2 w-full px-6 py-3 border font-semibold text-xs uppercase tracking-widest transition-all duration-200 shadow-sm hover:opacity-90 active:scale-95 mb-6"
+            style={{ borderColor: "var(--accent-rose)", background: "var(--cream-2)", color: "var(--charcoal)" }}
+          >
+            <span style={{ fontFamily: "'Plus Jakarta Sans', sans-serif" }}>View Demo Seller Dashboard</span>
+          </button>
+
           <div className="flex items-center gap-4 my-8">
             <div className="flex-1" style={{ height: "1px", background: "var(--border)" }} />
             <span className="text-[10px] uppercase tracking-widest font-semibold" style={{ color: "var(--muted)" }}>Platform Roles</span>
@@ -106,5 +161,17 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-[70vh] flex items-center justify-center">
+        <div className="shimmer h-8 w-8 rounded-full animate-spin border-2 border-charcoal"></div>
+      </div>
+    }>
+      <LoginForm />
+    </Suspense>
   );
 }

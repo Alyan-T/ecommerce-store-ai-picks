@@ -48,6 +48,12 @@ export async function POST(req) {
         { status: 400 }
       );
     }
+    if (product.isDemo && user.email !== "demo.seller@hyperstore.com") {
+      return NextResponse.json(
+        { error: `Product "${item.name}" is not available.` },
+        { status: 400 }
+      );
+    }
     if (product.stock < item.quantity) {
       return NextResponse.json(
         {

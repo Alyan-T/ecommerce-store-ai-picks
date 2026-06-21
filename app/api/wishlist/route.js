@@ -23,7 +23,11 @@ export async function GET(req) {
   const wishlistIds = dbUser.wishlist || [];
   if (wishlistIds.length === 0) return NextResponse.json({ products: [] });
 
-  const products = await Product.find({ _id: { $in: wishlistIds } })
+  const query = { _id: { $in: wishlistIds } };
+  if (user.email !== "demo.seller@hyperstore.com") {
+    query.isDemo = { $ne: true };
+  }
+  const products = await Product.find(query)
     .select("-embedding")
     .lean();
 

@@ -8,6 +8,7 @@ import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 import { faCartShopping, faHeart, faCheck, faBoxOpen, faImage, faMinus, faPlus, faRotateLeft, faUser } from "@fortawesome/free-solid-svg-icons";
 import { Truck, RotateCcw, Lock } from "lucide-react";
 import { faHeart as faHeartRegular } from "@fortawesome/free-regular-svg-icons";
+import DOMPurify from "isomorphic-dompurify";
 
 function AiReviewsSummary({ productId, reviewCount }) {
   const [summary, setSummary] = useState(null);
@@ -358,9 +359,11 @@ export default function ProductDetailPage() {
             ${product.price.toFixed(2)}
           </p>
 
-          <p className="text-sm leading-relaxed mb-8 max-w-lg" style={{ color: "var(--charcoal-3)" }}>
-            {product.description}
-          </p>
+          <div
+            className="text-sm leading-relaxed mb-8 max-w-lg rich-description"
+            style={{ color: "var(--charcoal-3)" }}
+            dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(product.description || "") }}
+          />
 
           <div className="divider mb-8" />
 

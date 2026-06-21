@@ -19,55 +19,35 @@ export default function HomePage() {
   return (
     <div className="fade-in-up">
       {/* ── Hero ── */}
-      <section className="mb-16 mt-2">
-        <div
-          className="relative overflow-hidden rounded-none"
-          style={{ background: "var(--cream-2)", minHeight: "450px" }}
-        >
-          {/* Decorative circles */}
-          <div
-            className="absolute -top-20 -right-20 w-72 h-72 rounded-full opacity-30"
-            style={{ background: "radial-gradient(circle, var(--warm-tan), transparent 70%)" }}
-          />
-          <div
-            className="absolute bottom-0 left-10 w-48 h-48 rounded-full opacity-20"
-            style={{ background: "radial-gradient(circle, var(--accent-rose), transparent 70%)" }}
-          />
-
-          <div className="relative z-10 flex flex-col items-center justify-center px-6 sm:px-16 py-24 text-center max-w-3xl mx-auto h-full">
-            <p
-              className="text-xs font-semibold uppercase tracking-widest mb-6"
-              style={{ color: "var(--accent-rose)", letterSpacing: "0.2em" }}
+      <section className="relative min-h-[75vh] flex flex-col justify-center items-center text-center px-container-padding-mobile overflow-hidden bg-[var(--cream-2)] mb-16 mt-2 rounded-none">
+        <div className="absolute inset-0 z-0 opacity-40">
+          <div 
+            className="w-full h-full bg-cover bg-center" 
+            style={{ backgroundImage: "url('https://lh3.googleusercontent.com/aida/AP1WRLtANPId4AC-A8ron3Bqf1bsQWbhNPURcEYhwkBZWAeBKVAHDmfeiYm9ECUio-2gg8kMidz47f8_JpVHn6YWfBi-5lpGsWiyxRgdwiP3-oaG_U3t01kZWF4bcPj6Zz2CtOEFmVjcLseChpWD6JTUQIgAQpdlS2HsjipdZzWbT-pdBPmVF_xn5wtPlAmkKzyuwMurLUttXCCkFouUynKWSk4jSKE2G70t_VLv0Knh_W4q97ofHrFZsRqF56o')" }}
+          ></div>
+          <div className="absolute inset-0 hero-gradient"></div>
+        </div>
+        
+        <div className="relative z-10 max-w-2xl space-y-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-[var(--warm-brown)]" style={{ letterSpacing: "0.2em" }}>
+            New Collection — 2026
+          </p>
+          <h1 
+            className="text-5xl sm:text-7xl font-bold leading-tight text-[var(--charcoal-3)]"
+            style={{ fontFamily: "'Playfair Display', Georgia, serif" }}
+          >
+            Discover <br /> <span className="italic font-normal text-[var(--accent-rose)]">Timeless</span> Elegance
+          </h1>
+          <p className="text-sm sm:text-base text-[var(--charcoal-2)] max-w-md mx-auto leading-relaxed">
+            Curated fashion and lifestyle essentials. Quality pieces crafted for the discerning modern individual.
+          </p>
+          <div className="pt-6">
+            <Link 
+              href="/shop" 
+              className="inline-flex items-center gap-2 bg-[var(--charcoal-3)] text-[var(--cream-2)] px-8 py-4 text-xs font-semibold tracking-widest hover:opacity-90 active:scale-95 transition-all"
+              style={{ letterSpacing: "0.12em" }}
             >
-              New Collection — 2026
-            </p>
-            <h1
-              className="text-5xl sm:text-7xl font-bold leading-tight mb-8"
-              style={{
-                fontFamily: "'Playfair Display', Georgia, serif",
-                color: "var(--charcoal)",
-              }}
-            >
-              Discover <br />
-              <em style={{ fontStyle: "italic", color: "var(--accent-rose)" }}>Timeless</em> Elegance
-            </h1>
-            <p className="text-sm sm:text-base mb-10 max-w-lg leading-relaxed mx-auto" style={{ color: "var(--muted)" }}>
-              Curated fashion and lifestyle essentials. Quality pieces crafted for the discerning modern individual.
-            </p>
-            <Link
-              href="/shop"
-              className="inline-flex items-center gap-3 text-xs font-semibold uppercase tracking-widest px-8 py-4 transition-all"
-              style={{
-                background: "var(--charcoal)",
-                color: "#fff",
-                letterSpacing: "0.12em",
-                borderRadius: "2rem",
-              }}
-              onMouseEnter={(e) => { e.currentTarget.style.background = "var(--charcoal-2)"; e.currentTarget.style.transform = "translateY(-1px)"; }}
-              onMouseLeave={(e) => { e.currentTarget.style.background = "var(--charcoal)"; e.currentTarget.style.transform = "none"; }}
-            >
-              Shop the Collection
-              <span>→</span>
+              SHOP THE COLLECTION <span className="text-xs">→</span>
             </Link>
           </div>
         </div>
@@ -126,7 +106,7 @@ export default function HomePage() {
       <section className="mb-20">
         <div className="flex flex-col md:flex-row items-stretch" style={{ background: "var(--cream-3)", minHeight: "400px" }}>
           <div className="flex-1 p-10 md:p-16 flex flex-col justify-center">
-            <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "var(--accent-rose)", letterSpacing: "0.2em" }}>
+            <p className="text-xs font-semibold uppercase tracking-widest mb-4" style={{ color: "var(--warm-brown)", letterSpacing: "0.2em" }}>
               Our Philosophy
             </p>
             <h2 className="text-3xl sm:text-4xl font-semibold mb-6 leading-tight" style={{ fontFamily: "'Playfair Display', Georgia, serif", color: "var(--charcoal)" }}>
@@ -141,7 +121,7 @@ export default function HomePage() {
           </div>
           <div className="flex-1 min-h-[300px] relative bg-gray-200">
             <img 
-              src="/lifestyle.png" 
+              src="https://lh3.googleusercontent.com/aida-public/AB6AXuDnZBFFLtiM6_1iF7c_guELFVB-Gv2ogmO7s5E-G4vLX0cyclXvNVz3WTq94UA2tkISNs3hRgiPRdF5tfDCkWhWvQUn-ZcxYEhDfImyU2EMBg_L0takLNt2crJeTq7KeKqE3RGcGYNFzJ8kInTUozbUKUEVrC1XpEvTTrEsWjMFAdsEE56reI9iQMZz52O54g5zk8Fxt6ZydlI5IahHRKhvbvET_gBgq9C2wAV8n956pPbKtRyyLig14QzNncQXCaOIrIr8LQh9fLc" 
               alt="Lifestyle" 
               className="absolute inset-0 w-full h-full object-cover" 
             />

@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { connectToDatabase } from "@/lib/mongodb";
 import Review from "@/models/Review";
+import Product from "@/models/Product";
+import { getUserFromRequest } from "@/lib/auth";
 import { mistral } from "@/lib/mistral";
 
 export async function GET(req, { params }) {
@@ -8,6 +10,17 @@ export async function GET(req, { params }) {
 
   try {
     await connectToDatabase();
+
+    const product = await Product.findById(id).select("isDemo").lean();
+    if (!product) {
+      return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    }
+    if (product.isDemo) {
+      const user = getUserFromRequest(req);
+      if (user?.email !== "demo.seller@hyperstore.com") {
+        return NextResponse.json({ error: "Product not found" }, { status: 404 });
+      }
+    }
 
     // Fetch reviews for this product
     const reviews = await Review.find({ product: id }).lean();
