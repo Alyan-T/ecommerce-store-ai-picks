@@ -11,15 +11,15 @@ import {
   faChevronRight,
 } from "@fortawesome/free-solid-svg-icons";
 
+const WELCOME = {
+  role: "assistant",
+  content: "Hi! I'm your AI shopping assistant. Ask me to find products, compare items, or get recommendations.",
+  products: [],
+};
+
 export default function ChatWidget() {
   const [open, setOpen] = useState(false);
-  const [messages, setMessages] = useState([
-    {
-      role: "assistant",
-      content: "Hi! I'm your AI shopping assistant. Ask me to find products, compare items, or get recommendations.",
-      products: [],
-    },
-  ]);
+  const [messages, setMessages] = useState([WELCOME]);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
@@ -38,22 +38,28 @@ export default function ChatWidget() {
     const text = input.trim();
     if (!text || loading) return;
 
-    const userMessage = { role: "user", content: text };
-    const newMessages = [...messages, userMessage];
-    setMessages(newMessages);
+    // Optimistically add user message
+    const userMsg = { role: "user", content: text, products: [] };
+    const updatedMessages = [...messages, userMsg];
+    setMessages(updatedMessages);
     setInput("");
     setLoading(true);
 
     try {
-      const history = newMessages
-        .filter((m) => m.role === "user" || m.role === "assistant")
-        .map((m) => ({ role: m.role, content: m.content }));
+      // Build history (exclude products field, just role + content)
+      const history = updatedMessages
+        .slice(0, -1) // exclude the message we just added
+        .map(({ role, content }) => ({ role, content }));
 
       const res = await fetch("/api/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, history: history.slice(0, -1) }),
+        body: JSON.stringify({ message: text, history }),
       });
+
+      if (!res.ok) {
+        throw new Error(`Server error: ${res.status}`);
+      }
 
       const data = await res.json();
 
@@ -61,16 +67,17 @@ export default function ChatWidget() {
         ...prev,
         {
           role: "assistant",
-          content: data.reply || "Sorry, something went wrong. Please try again.",
+          content: data.reply || "Sorry, I didn't understand that. Please try again.",
           products: data.products || [],
         },
       ]);
     } catch (err) {
+      console.error("Chat error:", err);
       setMessages((prev) => [
         ...prev,
         {
           role: "assistant",
-          content: "Sorry, I couldn't reach the assistant. Please try again.",
+          content: "Sorry, I couldn't reach the assistant right now. Please try again.",
           products: [],
         },
       ]);
@@ -111,7 +118,7 @@ export default function ChatWidget() {
               <div className="text-white font-semibold text-sm">AI Shopping Assistant</div>
               <div className="text-indigo-200 text-xs flex items-center gap-1.5">
                 <span className="w-1.5 h-1.5 bg-emerald-400 rounded-full inline-block animate-pulse" />
-                Online · Ready to help
+                Online &middot; Ready to help
               </div>
             </div>
             <button
@@ -136,12 +143,13 @@ export default function ChatWidget() {
                     className={`px-3.5 py-2.5 rounded-2xl text-xs leading-relaxed ${
                       m.role === "user"
                         ? "bg-gradient-to-br from-indigo-600 to-violet-700 text-white rounded-tr-sm shadow-md"
-                        : "bg-slate-800/80 text-slate-200 rounded-tl-sm border border-slate-700/50 shadow-sm"
+                        : "bg-slate-800/80 text-slate-200 rounded-tl-sm border border-slate-700/50 shadow-sm whitespace-pre-wrap"
                     }`}
                   >
                     {m.content}
                   </div>
 
+                  {/* Product cards */}
                   {m.products && m.products.length > 0 && (
                     <div className="mt-2 space-y-1.5">
                       {m.products.map((p) => (
@@ -154,7 +162,9 @@ export default function ChatWidget() {
                             {p.image && <img src={p.image} alt={p.name} className="w-full h-full object-cover" />}
                           </div>
                           <div className="min-w-0 flex-1">
-                            <div className="font-medium text-slate-200 text-xs truncate group-hover:text-indigo-400 transition-colors">{p.name}</div>
+                            <div className="font-medium text-slate-200 text-xs truncate group-hover:text-indigo-400 transition-colors">
+                              {p.name}
+                            </div>
                             <div className="text-indigo-400 text-xs font-bold">${p.price}</div>
                           </div>
                           <FontAwesomeIcon icon={faChevronRight} className="text-slate-600 group-hover:text-indigo-400 text-xs flex-shrink-0 transition-colors" />
@@ -166,6 +176,7 @@ export default function ChatWidget() {
               </div>
             ))}
 
+            {/* Typing indicator */}
             {loading && (
               <div className="flex justify-start items-center gap-2">
                 <div className="w-7 h-7 rounded-xl bg-gradient-to-br from-violet-500 to-indigo-600 flex-shrink-0 flex items-center justify-center">
@@ -174,7 +185,11 @@ export default function ChatWidget() {
                 <div className="bg-slate-800/80 border border-slate-700/50 rounded-2xl rounded-tl-sm px-4 py-3">
                   <div className="flex gap-1.5">
                     {[0, 1, 2].map((i) => (
-                      <div key={i} className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce" style={{ animationDelay: `${i * 0.15}s` }} />
+                      <div
+                        key={i}
+                        className="w-1.5 h-1.5 bg-indigo-400 rounded-full animate-bounce"
+                        style={{ animationDelay: `${i * 0.15}s` }}
+                      />
                     ))}
                   </div>
                 </div>
@@ -188,10 +203,12 @@ export default function ChatWidget() {
           <form onSubmit={sendMessage} className="border-t border-slate-700/50 p-3 flex gap-2 bg-slate-900/60">
             <input
               ref={inputRef}
+              type="text"
               value={input}
               onChange={(e) => setInput(e.target.value)}
               placeholder="Ask about products..."
-              className="input-dark flex-1 py-2 text-xs"
+              disabled={loading}
+              className="input-dark flex-1 py-2 text-xs disabled:opacity-60"
             />
             <button
               type="submit"

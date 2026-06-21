@@ -7,108 +7,140 @@ import { getUserFromRequest } from "@/lib/auth";
 // POST /api/chat
 // body: { message: string, history: [{ role, content }] }
 export async function POST(req) {
-  await connectToDatabase();
-
-  const { message, history = [] } = await req.json();
-
-  if (!message || !message.trim()) {
-    return NextResponse.json({ error: "message is required" }, { status: 400 });
-  }
-
-  // 1. Turn the user's message into a vector
-  const queryEmbedding = await getEmbedding(message);
-
-  // 2. Run a vector search against the "vector_index" defined in Atlas
-  //    on the Product collection's "embedding" field.
-  let matches = [];
   try {
-    const user = getUserFromRequest(req);
-    const includeDemo = user?.email === "demo.seller@hyperstore.com";
+    await connectToDatabase();
 
-    const pipeline = [
-      {
-        $vectorSearch: {
-          index: "vector_index",
-          path: "embedding",
-          queryVector: queryEmbedding,
-          numCandidates: 100,
-          limit: 5,
-        },
-      },
-    ];
+    const { message, history = [] } = await req.json();
 
-    if (!includeDemo) {
-      pipeline.push({
-        $match: {
-          isDemo: { $ne: true }
-        }
-      });
+    if (!message || !message.trim()) {
+      return NextResponse.json({ error: "message is required" }, { status: 400 });
     }
 
-    pipeline.push({
-      $project: {
-        name: 1,
-        description: 1,
-        price: 1,
-        category: 1,
-        image: 1,
-        score: { $meta: "vectorSearchScore" },
-      },
-    });
+    const user = getUserFromRequest(req);
+    const includeDemo = user?.email === "demo.seller@hyperstore.com";
+    const demoFilter = includeDemo ? {} : { isDemo: { $ne: true } };
 
-    matches = await Product.aggregate(pipeline);
-  } catch (err) {
-    // If the vector index doesn't exist yet, fall back gracefully
-    console.error("Vector search failed:", err.message);
-    matches = [];
-  }
+    const projectFields = {
+      _id: 1,
+      name: 1,
+      description: 1,
+      price: 1,
+      category: 1,
+      image: 1,
+    };
 
-  // 3. Build context from the matched products for the LLM
-  const productContext = matches.length
-    ? matches
-        .map(
-          (p, i) =>
-            `${i + 1}. ${p.name} - $${p.price} (${p.category})\n   ${p.description}`
-        )
-        .join("\n")
-    : "No matching products were found in the catalog.";
+    let matches = [];
+    let searchMethod = "none";
 
-  const systemPrompt = `You are a friendly, helpful shopping assistant for HyperStore (our fashion and lifestyle e-commerce store).
-We offer high-quality products across multiple categories, including:
-- Electronics (gadgets, devices)
-- Clothes (fashion, apparel, accessories)
-- Books (literature, guides, educational)
-- Sports (gear, activewear, outdoor equipment)
-- Home (decor, furniture, essentials)
-- Other general goods
+    // 1. Try vector search first
+    try {
+      const queryEmbedding = await getEmbedding(message);
 
-Use the product matches below to answer the customer's question and make recommendations.
-Only recommend products from the provided list of matches.
-If no matching products are found or if they do not suit the customer's query well, say so honestly and suggest they browse the shop page for other categories. Keep responses concise, warm, editorial, and conversational.
+      const pipeline = [
+        {
+          $vectorSearch: {
+            index: "vector_index",
+            path: "embedding",
+            queryVector: queryEmbedding,
+            numCandidates: 100,
+            limit: 8,
+          },
+        },
+        { $match: demoFilter },
+        { $project: { ...projectFields, score: { $meta: "vectorSearchScore" } } },
+      ];
 
-Relevant product matches:
+      const vectorResults = await Product.aggregate(pipeline);
+
+      // Only trust vector results with a decent similarity score
+      matches = vectorResults.filter((p) => (p.score ?? 0) > 0.3);
+      if (matches.length > 0) searchMethod = "vector";
+    } catch (err) {
+      console.warn("Vector search unavailable:", err.message);
+    }
+
+    // 2. Fallback: text / regex search across name, description, category
+    if (matches.length === 0) {
+      try {
+        // Build tokens from the message (words 3+ chars, deduplicated)
+        const tokens = [...new Set(
+          message
+            .toLowerCase()
+            .replace(/[^\w\s]/g, "")
+            .split(/\s+/)
+            .filter((w) => w.length >= 3)
+        )];
+
+        if (tokens.length > 0) {
+          // OR across all tokens, each token searched across multiple fields
+          const orClauses = tokens.flatMap((token) => [
+            { name: { $regex: token, $options: "i" } },
+            { description: { $regex: token, $options: "i" } },
+            { category: { $regex: token, $options: "i" } },
+          ]);
+
+          matches = await Product.find(
+            { $and: [demoFilter, { $or: orClauses }] },
+            projectFields
+          ).limit(5).lean();
+
+          if (matches.length > 0) searchMethod = "text";
+        }
+
+        // 3. Last resort: return a broad sample of products so the AI has context
+        if (matches.length === 0) {
+          matches = await Product.find(demoFilter, projectFields).limit(8).lean();
+          searchMethod = "sample";
+        }
+      } catch (err) {
+        console.error("Fallback search failed:", err.message);
+      }
+    }
+
+    // 4. Build product context for the LLM
+    const productContext = matches.length
+      ? matches
+          .map(
+            (p, i) =>
+              `${i + 1}. ${p.name} — $${p.price} (${p.category})\n   ${p.description || "No description."}`
+          )
+          .join("\n\n")
+      : "No products are currently available.";
+
+    const systemPrompt = `You are a friendly, knowledgeable AI shopping assistant for HyperStore — a premium e-commerce store.
+We sell: Electronics, Clothes, Books, Sports gear, Home goods, and more.
+
+Below is a list of real products from our database. Use these to answer the customer's question with specific, accurate recommendations.
+IMPORTANT: Never say we don't carry a product if it appears in the list below. Never make up products that are not in the list.
+If the specific item the customer wants is not in the list, recommend the closest match and suggest they browse the shop page.
+
+Product catalog (search method: ${searchMethod}):
 ${productContext}`;
 
-  // 4. Ask the LLM for a conversational response
-  const completion = await mistral.chat.complete({
-    model: "mistral-small-latest",
-    messages: [
-      { role: "system", content: systemPrompt },
-      ...history,
-      { role: "user", content: message },
-    ],
-  });
+    // 5. Ask Mistral for a conversational response
+    const completion = await mistral.chat.complete({
+      model: "mistral-small-latest",
+      messages: [
+        { role: "system", content: systemPrompt },
+        ...history.slice(-10),
+        { role: "user", content: message },
+      ],
+    });
 
-  const reply = completion.choices[0].message.content;
+    const reply = completion.choices[0].message.content;
 
-  return NextResponse.json({
-    reply,
-    products: matches.map((p) => ({
-      _id: p._id,
-      name: p.name,
-      price: p.price,
-      image: p.image,
-      category: p.category,
-    })),
-  });
+    return NextResponse.json({
+      reply,
+      products: matches.slice(0, 5).map((p) => ({
+        _id: p._id,
+        name: p.name,
+        price: p.price,
+        image: p.image,
+        category: p.category,
+      })),
+    });
+  } catch (err) {
+    console.error("Chat API error:", err);
+    return NextResponse.json({ error: "Internal server error" }, { status: 500 });
+  }
 }
